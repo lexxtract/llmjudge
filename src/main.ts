@@ -40,7 +40,7 @@ const renderBreadcrumbs = (activeIndex: number)=>{
 
 const renderRoute = ()=>{
   const path = window.location.pathname
-  if (path.startsWith("/view/")) {
+  if (path === "/view" || path.startsWith("/view/")) {
     const parts = path.split("/").filter(Boolean)
     const tableName = parts[1] || ""
     const id = parts[2] || ""
