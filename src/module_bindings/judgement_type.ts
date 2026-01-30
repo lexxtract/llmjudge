@@ -10,8 +10,11 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default __t.object("NoteCountRow", {
-  count: __t.u64(),
+export default __t.object("Judgement", {
+  id: __t.u64(),
+  output: __t.u64(),
+  judge: __t.u64(),
+  reward100: __t.u8(),
 });
 
 

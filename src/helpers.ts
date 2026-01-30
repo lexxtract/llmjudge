@@ -1,82 +1,82 @@
-import { button, div, input, p, popup, style } from "./html"
+import { call_reducer, query_data } from "./dbconn";
+import { button, div, h2, input, p, popup } from "./html";
 
-export const stringify = x=>JSON.stringify(x,null,2)
+export const addArticle = (title: string, content: string)=> call_reducer("add_article", [title, content])
 
-export const JsonFmt = (data:string) => stringify(JSON.parse(data))
+export const addSchema = (title: string, content: string)=> call_reducer("add_schema", [title, content])
 
-export type SchemaEntry = { id: string; title: string; hash: string; count?: number };
+export const addAgent = (title: string, JScode: string)=> call_reducer("add_agent", [title, JScode])
 
+export const addJudge = (title: string, JScode: string)=> call_reducer("add_judge", [title, JScode])
 
-
-const list = div(p("loading..."));
-
-
-export const noteSearch = (
-  onSelect: (schema: SchemaEntry) => void,
-  schemas: SchemaEntry[]
-)=>{
-  const sorted = [...schemas].sort((a, b) =>
-    (b.count || 0) - (a.count || 0) || (Number(b.id) || 0) - (Number(a.id) || 0)
-  );
-  const renderList = (items: typeof schemas) => {
-    list.innerHTML = "";
-    const col = div(style({ display: "flex", flexDirection: "column", gap: "0.5em" }));
-    items.slice(0, 10).forEach((s) => {
-      const countLabel = s.count !== undefined ? ` (${s.count})` : "";
-      const row = div(
-        style({ display: "flex", gap: "0.5em", alignItems: "center" }),
-        button(`#${s.id}${s.title ? ` : ${s.title}` : ""}${countLabel}`, {
-          style: { textAlign: "left", width: "100%" },
-          onclick: () => {
-            onSelect(s);
-            pop.remove();
-          },
-        }),
-        button("preview", {
-          onclick: () => window.open(`/${s.hash}`, "_blank", "noopener"),
-          style: { fontSize: "0.85em", padding: "0.2em 0.4em" }
-        })
-      );
-      col.appendChild(row);
-    });
-    list.appendChild(col);
-  };
-
-  renderList(sorted);
-  const search = input("", { placeholder: "search id, title, hash" });
-  search.oninput = () => {
-    const q = search.value.trim().toLowerCase();
-    if (!q) return renderList(sorted);
-    const byId = sorted.filter((s) => s.id.toLowerCase().includes(q));
-    if (byId.length) return renderList(byId);
-    const byTitle = sorted.filter((s) => s.title.toLowerCase().includes(q));
-    return renderList(byTitle);
-  };
-
-  let pop = popup(div(
-    style({ display: "flex", flexDirection: "column", gap: "0.5em" }),
-    search,
-    list
-  ));
-
-} 
+export const addOutput = (article: number, schema: number, agent: number, content: string)=>
+  call_reducer("add_output", [article, schema, agent, content])
 
 
-export const createSchemaPicker = (
-  fetchSchemas: () => Promise<SchemaEntry[]>,
-  onSelect: (schema: SchemaEntry) => void,
-  label = "change schema"
-) =>
-  button(label, {
-    onclick: () => {
 
-      fetchSchemas()
-        .then((schemas) => {
-          noteSearch(onSelect, schemas);
-        })
-        .catch((e) => {
-          list.innerHTML = "";
-          list.appendChild(p(e.message || "failed to load schemas"));
-        });
-    },
-  });
+export type TableName = "article" | "schema" | "agent" | "judge" | "output"
+export const table_names:TableName[] = ["article", "schema", "agent", "judge", "output"]
+
+export const userPickTable = (title:string = "pick a table") : Promise<TableName> =>new Promise((rs, rj)=>{
+  const pop = popup(
+    h2(title),
+    div(
+      { style: { display: "flex", flexDirection: "column", gap: "0.5em" } },
+      ...table_names.map((name)=>button(name, {
+        onclick: ()=>{
+          pop.remove()
+          rs(name)
+        }
+      }))
+    ),
+    p("")
+  )
+})
+
+export const userPickRow = async (table: TableName, title:string = "pick a row")=>{
+  const { names, rows } = await query_data(`select * from ${table} limit 100`)
+  const idIndex = names.indexOf("id")
+  const items = rows.map((row)=>{
+    const values = rowValues(row, names)
+    const id = idIndex === -1 ? values[0] : values[idIndex]
+    const label = values.map((v, i)=> i === idIndex ? `#${v}` : preview(v)).filter(Boolean).join(" • ")
+    return { id, label }
+  }).filter(r=>r.id !== undefined && r.id !== null)
+
+  return new Promise<number>((rs, rj)=>{
+    if (!items.length) {
+      const pop = popup(h2(title), p("no rows"), button("close", { onclick: ()=>{ pop.remove(); rj("no rows") } }))
+      return
+    }
+    const list = div({ style: { display: "flex", flexDirection: "column", gap: "0.5em" } })
+    const filter = input({ placeholder: "search...", style: { width: "100%" } })
+    const render = ()=>{
+      const q = filter.value.toLowerCase().trim()
+      const filtered = q ? items.filter(i=>i.label.toLowerCase().includes(q)) : items
+      list.replaceChildren(
+        ...filtered.map(i=>button(i.label || String(i.id), {
+          onclick: ()=>{
+            pop.remove()
+            rs(Number(i.id))
+          }
+        }))
+      )
+    }
+    filter.addEventListener("input", render)
+    const pop = popup(h2(title), filter, list, p(""))
+    render()
+  })
+}
+
+const rowValues = (row: any, names: string[])=>{
+  if (Array.isArray(row)) return row
+  if (row && typeof row === "object") return names.map(n=>row[n])
+  return [row]
+}
+
+const preview = (value: any)=>{
+  if (value === null || value === undefined) return ""
+  if (typeof value === "string") return value.slice(0, 40)
+  if (typeof value === "object") return JSON.stringify(value).slice(0, 40)
+  return String(value)
+}

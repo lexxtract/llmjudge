@@ -1,139 +1,80 @@
-import { a, div, h2, p, popup, style } from "./html";
-import { openNoteView } from "./note_view";
-import { createDashboardView } from "./dashboard";
-import { createEditView } from "./edit";
-import { createSqlView } from "./sql_view";
-import { createDepsView } from "./deps_view";
-import { Hash, NoteData, Ref, tojson } from "../spacetimedb/src/notes"
-import { addNote, getHash, getNote, query_data } from "./dbconn";
+import { div, h1, routeLink, span } from "./html"
+import { TableView } from "./pages/table"
+import { NewDataPage, renderNewData } from "./pages/newdata"
+import { ViewPage, renderView } from "./pages/view"
+import { page } from "./types"
 
-let runQuery = () => {};
+const body = document.body
 
-export type Draft = {schemaHash: Hash, text: string}
-let editFill: ((d:Draft) => void) | null = null;
-let contentRoot: HTMLElement | null = null;
-let lastDraftRaw: string | null = null;
-let handleRoute = () => {};
-const body = document.body;
+const viewPage = ViewPage()
 
-const render = (view: HTMLElement) => contentRoot && (contentRoot.innerHTML = "", contentRoot.appendChild(view));
-const navigate = (path: string) => (history.pushState({}, "", path), handleRoute());
+const newPage = NewDataPage()
 
+const pages:page[] = [
+  TableView(),
+  viewPage,
+  newPage
+]
 
-const submitNote = async (data: NoteData) => {
-  try {
-    const ref = await addNote(data.schemaHash, data.data);
-    const hash = typeof ref === "string" ? ref.slice(1) : String(await getHash(ref));
-    navigate(`/${hash}`);
-  } catch (e: any) {
-    popup(h2("ERROR"), p(e.message || "failed to add note"));
-  }
+const slugify = (title: string)=> title
+  .toLowerCase()
+  .trim()
+  .replace(/[^a-z0-9]+/g, "-")
+  .replace(/^-+|-+$/g, "")
+
+const pagePath = (p: page, index: number)=> index === 0 ? "/" : `/${slugify(p.title)}`
+
+const crumbs = div()
+const main = div()
+
+const renderBreadcrumbs = (activeIndex: number)=>{
+  crumbs.replaceChildren(
+    ...pages.flatMap((p, i)=>{
+      const label = p.title
+      const isActive = i === activeIndex
+      const node = isActive ? span(label, { style: { fontWeight: "600" } }) : routeLink(pagePath(p, i), label)
+      return i === 0 ? [node] : [span(" / "), node]
+    })
+  )
 }
 
-
-const showNote = (hash: Hash) => render(openNoteView(hash, submitNote))
-
-
-const navKey = (path: string) => {
-  if (!path) return "/";
-  if (path.startsWith("deps/")) return "/deps";
-  return `/${path}`;
-};
-
-handleRoute = () => {
-  const path = window.location.pathname.replace(/^\/+/, "");
-  console.log(path)
-
-  navitems.forEach((it) => {
-    it.style.setProperty("opacity", it.pathname === navKey(path) ? "1" : "0.5");
-  });
-  if (path === "edit") {
-    render(editView.root);
-    const params = new URLSearchParams(window.location.search);
-    const searchid = params.get("id");
-    const isNew = params.get("new") === "1";
-    if (isNew) localStorage.removeItem("edit_draft");
-    if (searchid === null){
-      const raw = localStorage.getItem("edit_draft");
-      if (raw && raw !== lastDraftRaw) {
-        lastDraftRaw = raw;
-        try {
-          const draft = JSON.parse(raw);
-          editFill(draft)
-        } catch {}
-      } else {
-        getHash(0).then((schemaHash) => editFill({schemaHash, text: "{}"})).catch(() => {});
-      }
-    }else{
-      getNote(Number(searchid))
-        .then((note) => editFill({schemaHash: note.schemaHash, text: tojson(note.data)}))
-        .catch((e) => popup(h2("ERROR"), p(e.message))); 
-    }
-  } else if (!path) {
-    render(dashboard.root);
-    runQuery();
-  } else if (path === "sql") {
-    render(sqlView.root);
-  } else if (path.startsWith("deps")) {
-    render(depsView.root);
-    depsView.render((path.slice(5) || lastNoteRef) as Ref);
-  } else if (Number.isFinite(Number(path))) {
-    getHash(Number(path)).then(hash=>{
-      lastNoteRef = String(hash);
-      showNote(hash)
-    })
-  } else {
-    lastNoteRef = path;
-    showNote(path as Hash);
+const renderRoute = ()=>{
+  const path = window.location.pathname
+  if (path.startsWith("/view/")) {
+    const parts = path.split("/").filter(Boolean)
+    const tableName = parts[1] || ""
+    const id = parts[2] || ""
+    const viewIndex = pages.indexOf(viewPage)
+    renderBreadcrumbs(viewIndex === -1 ? 0 : viewIndex)
+    main.replaceChildren(viewPage.element)
+    renderView(viewPage.element, tableName, id)
+    document.title = viewPage.title
+    return
   }
-};
+  if (path === "/new" || path.startsWith("/new/")) {
+    const parts = path.split("/").filter(Boolean)
+    const tableName = parts[1] || ""
+    const newIndex = pages.indexOf(newPage)
+    renderBreadcrumbs(newIndex === -1 ? 0 : newIndex)
+    main.replaceChildren(newPage.element)
+    renderNewData(newPage.element, tableName)
+    document.title = newPage.title
+    return
+  }
+  const index = pages.findIndex((p, i)=> pagePath(p, i) === path)
+  const activeIndex = index === -1 ? 0 : index
+  const active = pages[activeIndex]
+  renderBreadcrumbs(activeIndex)
+  main.replaceChildren(active.element)
+  document.title = active.title
+}
 
-const bubble = style({
-  padding: "1.5em",
-  margin: ".5em",
-  borderRadius: "1em",
-  background: "var(--background-color)",
-  color: "var(--color)",
-  border: "1px solid #ccc",
-});
+window.addEventListener("popstate", renderRoute)
 
+body.append(
+  h1("LLM JUDGE"),
+  crumbs,
+  main
+)
 
-let lastNoteRef: string | null = null;
-
-let navitems = [
-  ["Dashboard", "/"],
-  ["Edit", "/edit"],
-  ["SQL", "/sql"],
-  ["Deps", "/deps"],
-].map(([name, path])=>a(style({ textDecoration: "none", color: "inherit", fontWeight: "bold" }), {"href": path, onclick: (e)=>{
-  if (e.metaKey) return
-  e.preventDefault()
-  navigate(path)
-}}, name))
-
-body.appendChild(div(
-  style({ display: "flex", flexDirection: "column", gap: "0.75em", padding: "1em" }),
-  a(style({ textDecoration: "none", color: "inherit" }), h2("Json View"), { href: "/", onclick: (e) => { e.preventDefault(); navigate("/"); } }),
-  div(style({ display: "flex", gap: "1em" }),navitems  )
-));
-
-const dashboard = createDashboardView({ query: query_data, navigate});
-const editView = createEditView({
-  submit: submitNote
-});
-editFill = editView.fill;
-const sqlView = createSqlView({ query: query_data });
-const depsView = createDepsView({ query: query_data, navigate});
-
-contentRoot = div(bubble);
-body.appendChild(contentRoot);
-
-runQuery = dashboard.runQuery;
-render(dashboard.root);
-handleRoute();
-
-window.addEventListener("popstate", handleRoute);
-
-// import { insert_scenarios } from "./scenarios";
-
-// insert_scenarios()
+renderRoute()

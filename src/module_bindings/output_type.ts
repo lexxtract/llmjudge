@@ -10,6 +10,12 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default __t.object("NoteCount", {});
+export default __t.object("Output", {
+  id: __t.u64(),
+  article: __t.u64(),
+  schema: __t.u64(),
+  agent: __t.u64(),
+  content: __t.string(),
+});
 
 

@@ -19,7 +19,7 @@ Backend (SpacetimeDB module):
 cd spacetimedb
 npm install
 npm run build
-spacetime publish -c jsonview
+spacetime publish -c llmjudge
 ```
 
 ## URLs

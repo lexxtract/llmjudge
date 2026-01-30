@@ -1,88 +1,134 @@
 import { schema, table, t, SenderError } from 'spacetimedb/server';
-import { Hash, hashData, schemas, tojson, top, validate, expandLinksSync, fromjson, matchRef, Ref} from './notes';
+import Ajv from 'ajv';
+import { Jsonable } from './notes';
 
+const ajv = new Ajv();
 
-const JsonNotes = table(
+const Article = table(
   {
-    name: 'note',
+    name:"article",
     public: true,
   },
   {
-    id: t.u64().primaryKey(),
-    schemaId: t.u64(),
-    data: t.string(),
-    hash: t.string().unique().index("btree"),
-  }
-);
-
-const Links = table(
-  {
-    name: "links",
-    public: true
-  },{
-    to: t.u64().primaryKey(),
-    from: t.array(t.u64()),
+    id:t.u64().primaryKey().autoInc(),
+    title: t.string(),
+    content: t.string(),
   }
 )
 
-export const spacetimedb = schema(JsonNotes, Links);
-
-spacetimedb.view({ name: 'note_count', public: true }, t.array(t.object('NoteCountRow', { count: t.u64() })),
-  (ctx) => [{ count: ctx.db.note.count() }]
-);
-
-const add_note = spacetimedb.reducer('add_note', {
-  schemaHash: t.string(),
-  data: t.string(),
-}, (ctx, { schemaHash, data } ) => {
-  const schemaRow = ctx.db.note.hash.find(schemaHash);
-  if (!schemaRow) throw new SenderError('Schema not found');
-
-
-  try{
-
-    const resolve = (ref: string) => {
-      const row = /^\d+$/.test(ref)
-        ? ctx.db.note.id.find(BigInt(ref))
-        : ctx.db.note.hash.find(ref);
-      if (!row) throw new SenderError(`ref not found: #${ref}`);
-      return JSON.parse(row.data);
-    };
-    const parsed = fromjson(data)
-    const expandedJson = expandLinksSync(parsed, resolve);
-    const expandedSchema = expandLinksSync(fromjson(schemaRow.data), resolve);
-    validate(expandedJson, expandedSchema)
-
-    const id = ctx.db.note.count();
-    const hash = hashData({schemaHash: schemaHash as Hash, data: parsed})
-
-    if (ctx.db.note.hash.find(hash)) return;
-    ctx.db.note.insert({ id, schemaId: schemaRow.id, data, hash})
-
-    const targets = new Set([schemaRow.id]);
-    const re = /#([a-f0-9]+)/g;
-    let match: RegExpExecArray | null;
-    while ((match = re.exec(data))) {
-      const id = matchRef<number | bigint | undefined>(match[1] as Ref, id=>id, hash=> ctx.db.note.hash.find(hash)?.id)
-      if (id!==undefined) targets.add(BigInt(id))
-    }
-    for (const to of targets) {
-      const existing = ctx.db.links.to.find(to);
-      if (!existing) ctx.db.links.insert({ to, from: [id] });
-      else if (!existing.from.some((x) => x === id)) ctx.db.links.to.update({ ...existing, from: [...existing.from, id] });
-    }
-  }catch (e){
-    throw new SenderError( "INSERT ERROR: "+fromjson(schemaRow.data))
+const Schema = table(
+  {
+    name:"schema",
+    public:true,
+  },{
+    id:t.u64().primaryKey().autoInc(),
+    title: t.string(),
+    content: t.string(),
   }
+)
 
-});
+const Agent = table(
+  {
+    name:"agent",
+    public:true,
+  },
+  {
+    id:t.u64().primaryKey().autoInc(),
+    title: t.string(),
+    JScode: t.string(),
+  }
+)
+
+const Output = table(
+   {
+    name:"output",
+    public:true,
+  },
+  {
+    id:t.u64().primaryKey().autoInc(),
+    article: t.u64(),
+    schema: t.u64(),
+    agent: t.u64(),
+    content: t.string(),
+  }
+)
+
+const Judge = table(
+  {
+    name:"judge",
+    public:true,
+  },
+  {
+    id:t.u64().primaryKey().autoInc(),
+    title: t.string(),
+    JScode: t.string(),
+  }
+)
 
 
-const setup = spacetimedb.reducer('setup', {}, (ctx) => {
-  try{
-    ctx.db.note.insert({id: 0n, schemaId: 0n, data: tojson(top.data), hash: hashData(top)})
-  }catch {}
-  for (const note of schemas) add_note(ctx, {schemaHash: note.schemaHash, data: tojson(note.data)})
+const Judgement = table(
+   {
+    name:"judgement",
+    public:true,
+  },
+  {
+    id:t.u64().primaryKey().autoInc(),
+    output: t.u64(),
+    judge: t.u64(),
+    reward_100: t.u8(),
+  }
+)
+
+
+export const spacetimedb = schema(Article, Schema, Agent, Output, Judge, Judgement)
+
+
+spacetimedb.reducer("add_article", {title: t.string(), content: t.string()}, (c, {
+  title, content
+})=>{
+  c.db.article.insert({id: 0n, title, content})
 })
 
-spacetimedb.init(setup)
+spacetimedb.reducer("add_schema", {title: t.string(), content: t.string()}, (c, {
+  title, content
+})=>{
+  try{
+    let val = ajv.compile(JSON.parse(content))
+  } catch (e) { throw new SenderError("schema error: " + String(e))}
+  c.db.schema.insert({id: 0n, title, content})
+})
+
+spacetimedb.reducer("add_agent", {title: t.string(), JScode: t.string()}, (c, {
+  title, JScode
+})=>{
+  c.db.agent.insert({id: 0n, title, JScode})
+})
+
+spacetimedb.reducer("add_judge", {title: t.string(), JScode: t.string()}, (c, {
+  title, JScode
+})=>{
+  c.db.judge.insert({id: 0n, title, JScode})
+})
+
+spacetimedb.reducer("add_output", {article: t.u64(), schema: t.u64(), agent: t.u64(), content: t.string()}, (c, {
+  article, schema, agent, content
+})=>{
+  if (!c.db.article.id.find(article)) throw new SenderError("article does not exist")
+  if (!c.db.agent.id.find(agent)) throw new SenderError("agent does not exist")
+  const schemaRow = c.db.schema.id.find(schema)
+  if (!schemaRow) throw new SenderError("schema does not exist")
+  let schemaJson: Record<string, Jsonable>
+  let outputJson: unknown
+  try { schemaJson = JSON.parse(schemaRow.content) } catch { throw new SenderError("schema is not valid json") }
+  try { outputJson = JSON.parse(content) } catch { throw new SenderError("output is not valid json") }
+  try{
+    let val = ajv.compile(schemaJson)
+    val(outputJson)
+  
+  } catch (e) { throw new SenderError("schema error: " + String(e))}
+
+
+
+
+  c.db.output.insert({id: 0n, article, schema, agent, content})
+})

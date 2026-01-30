@@ -10,9 +10,7 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default __t.object("AddNote", {
-  schemaHash: __t.string(),
-  data: __t.string(),
-});
-
-
+export default {
+  title: __t.string(),
+  jScode: __t.string(),
+};

@@ -10,6 +10,10 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default __t.object("Init", {});
+export default __t.object("Article", {
+  id: __t.u64(),
+  title: __t.string(),
+  content: __t.string(),
+});
 
 

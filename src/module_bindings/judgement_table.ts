@@ -10,4 +10,9 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default {};
+export default __t.row({
+  id: __t.u64().primaryKey(),
+  output: __t.u64(),
+  judge: __t.u64(),
+  reward100: __t.u8().name("reward_100"),
+});

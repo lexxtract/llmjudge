@@ -32,63 +32,134 @@ import {
 } from "spacetimedb";
 
 // Import and reexport all reducer arg types
-import AddNoteReducer from "./add_note_reducer";
-export { AddNoteReducer };
-import SetupReducer from "./setup_reducer";
-export { SetupReducer };
+import AddArticleReducer from "./add_article_reducer";
+export { AddArticleReducer };
+import AddSchemaReducer from "./add_schema_reducer";
+export { AddSchemaReducer };
+import AddAgentReducer from "./add_agent_reducer";
+export { AddAgentReducer };
+import AddJudgeReducer from "./add_judge_reducer";
+export { AddJudgeReducer };
+import AddOutputReducer from "./add_output_reducer";
+export { AddOutputReducer };
 
 // Import and reexport all procedure arg types
 
 // Import and reexport all table handle types
-import NoteRow from "./note_table";
-export { NoteRow };
-import NoteCountRow from "./note_count_table";
-export { NoteCountRow };
+import AgentRow from "./agent_table";
+export { AgentRow };
+import ArticleRow from "./article_table";
+export { ArticleRow };
+import JudgeRow from "./judge_table";
+export { JudgeRow };
+import JudgementRow from "./judgement_table";
+export { JudgementRow };
+import OutputRow from "./output_table";
+export { OutputRow };
+import SchemaRow from "./schema_table";
+export { SchemaRow };
 
 // Import and reexport all types
-import AddNote from "./add_note_type";
-export { AddNote };
-import Init from "./init_type";
-export { Init };
-import Note from "./note_type";
-export { Note };
-import NoteCount from "./note_count_type";
-export { NoteCount };
-import NoteCountRow from "./note_count_row_type";
-export { NoteCountRow };
-import Setup from "./setup_type";
-export { Setup };
+import AddAgent from "./add_agent_type";
+export { AddAgent };
+import AddArticle from "./add_article_type";
+export { AddArticle };
+import AddJudge from "./add_judge_type";
+export { AddJudge };
+import AddOutput from "./add_output_type";
+export { AddOutput };
+import AddSchema from "./add_schema_type";
+export { AddSchema };
+import Agent from "./agent_type";
+export { Agent };
+import Article from "./article_type";
+export { Article };
+import Judge from "./judge_type";
+export { Judge };
+import Judgement from "./judgement_type";
+export { Judgement };
+import Output from "./output_type";
+export { Output };
+import Schema from "./schema_type";
+export { Schema };
 
 /** The schema information for all tables in this module. This is defined the same was as the tables would have been defined in the server. */
 const tablesSchema = __schema(
   __table({
-    name: 'note',
+    name: 'agent',
     indexes: [
-      { name: 'hash', algorithm: 'btree', columns: [
-        'hash',
-      ] },
       { name: 'id', algorithm: 'btree', columns: [
         'id',
       ] },
     ],
     constraints: [
-      { name: 'note_hash_key', constraint: 'unique', columns: ['hash'] },
-      { name: 'note_id_key', constraint: 'unique', columns: ['id'] },
+      { name: 'agent_id_key', constraint: 'unique', columns: ['id'] },
     ],
-  }, NoteRow),
+  }, AgentRow),
   __table({
-    name: 'note_count',
+    name: 'article',
     indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
     ],
     constraints: [
+      { name: 'article_id_key', constraint: 'unique', columns: ['id'] },
     ],
-  }, NoteCountRow),
+  }, ArticleRow),
+  __table({
+    name: 'judge',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'judge_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, JudgeRow),
+  __table({
+    name: 'judgement',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'judgement_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, JudgementRow),
+  __table({
+    name: 'output',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'output_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, OutputRow),
+  __table({
+    name: 'schema',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'schema_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, SchemaRow),
 );
 
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
-  __reducerSchema("add_note", AddNoteReducer),
-  __reducerSchema("setup", SetupReducer),
+  __reducerSchema("add_article", AddArticleReducer),
+  __reducerSchema("add_schema", AddSchemaReducer),
+  __reducerSchema("add_agent", AddAgentReducer),
+  __reducerSchema("add_judge", AddJudgeReducer),
+  __reducerSchema("add_output", AddOutputReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */

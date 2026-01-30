@@ -1,6 +1,6 @@
 // import { Stored, Writable } from "./store"
 
-export type htmlKey = 'innerText'|'onclick' | 'oninput' | 'onkeydown' |'children'|'class'|'id'|'href'|'data-nav'|'contentEditable'|'eventListeners'|'color'|'background' | 'style' | 'placeholder' | 'tabIndex' | 'colSpan'
+export type htmlKey = 'innerText'|'onclick' | 'oninput' | 'onkeydown' |'children'|'class'|'id'|'href'|'data-nav'|'contentEditable'|'eventListeners'|'color'|'background' | 'style' | 'placeholder' | 'tabIndex' | 'colSpan' | 'type'
 
 export const htmlElement = (tag:string, text:string, cls:string = "", args?:Partial<Record<htmlKey, any>>):HTMLElement =>{
 
@@ -517,5 +517,4 @@ const preview_text = (x:any, maxsize = 100) : string => {
 //   }
 //   console.log(plt)
 // }
-
 
